@@ -263,6 +263,41 @@ func main() {
 
 
 	// Range #############################
+
+	// use "range" to iterate over elements in a variety of data structures. 
+
+
+	nums := []int{2,3,4} // declaring a slice 
+	sum := 0 
+	for _, num := range nums { // kind of like forEach in javaScript or for x in list: in python
+		sum += num
+	}
+
+	fmt.Println("Sum of Slice:", sum)
+
+	for i, num := range nums { // range on arrays and slices provides both the index and values for elements
+		if num == 3 {
+			fmt.Println("index:", i)
+		}
+	}
+
+	kvs := map[string]string{"a": "apple", "b": "banana"}
+	for key, val := range kvs {
+		fmt.Printf("%s -> %s\n", key, val)
+	}
+
+	for k := range kvs {
+		fmt.Println("key:", k)
+	}
+
+	// range can be used to iterate over string, but it iterates over Unicode code points.
+	for i, c := range "go" {  // index and character in string
+		fmt.Println(i, c)
+	} /* Prints 
+	    	0 103
+			1 111  ??? */
+			
 	
+	// NEXT - functions.go
 
 }
