@@ -237,4 +237,32 @@ func main() {
 
 
 	// Maps ##########################
+
+	// Maps in Go are similar to hashes or dicts (dictonary in python or object in javaScript)
+
+	m := make(map[string]int) // creating an empty map (using built-in make) make(map[key-type]value-type)
+	
+	m["k1"] = 7  // setting key/value pairs 
+	m["k2"] = 13
+
+	fmt.Println("map:", m) // map: map[k1:7 k2:13]
+ 
+	v1 := m["k1"] // accessing values 
+	fmt.Println("v1:", v1) // 7
+	fmt.Println("len:", len(m)) // 2 - number of key/value pairs 
+
+	delete(m, "k2") // to remove a key/value pair use built-in delete() 
+	fmt.Println("map:", m)
+
+	_, present := m["k2"] // optional second return value indicates if a key was present or not in a map. 
+	fmt.Println("present?:", present)
+
+	newMap := map[string]int{"foo": 1, "bar": 2} // declaring and initializing 
+	fmt.Println("map:", newMap)
+
+
+
+	// Range #############################
+	
+
 }
