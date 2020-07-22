@@ -48,6 +48,11 @@ func main() {
 	fmt.Println(f, g)
 
 
+	first, second := 42, "second" // this is also valid initialization
+	fmt.Println("first", first)
+	fmt.Println("second", second)
+
+
 	// Constants ################
 	fmt.Println(S) // constant string declared at top. 
 	const n = 500000000 // "const" keyword declares sontsant values, can be used anywhere a "var" can be used. 
