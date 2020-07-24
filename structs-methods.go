@@ -24,13 +24,13 @@ type rect struct {
 
 // Go supports "methods" defined on struct types. 
 
+// (r *rect) or (r rect) is the context of the method (ie: reciever type) not the parameters type
 func (r *rect) area() int { // here receiver type is *rect (pointer to a rect struct)
 	return r.width * r.height
 }
-
 func (r rect) perim() int { // methods can be defined with either pointer or value receiver types.
 	return 2*r.width + 2*r.height
-}
+} 
 
 func main() {
 	fmt.Println(person{"Shubham", 20}) // {Shubham 20}

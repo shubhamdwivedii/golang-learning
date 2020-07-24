@@ -200,7 +200,7 @@ func main() {
 	// In Go, Slices are a key data type, giving more powerful interface to sequences than arrays.
 
 	slc := make([]string, 3) // unlike arrays, slices are typed only by the elements they contain (not the number of elements)
-	// make() is a built-in funcion in Go, used here to create a non-zero length slice.
+	// make() is a built-in funcion in Go, used here to create a non-zero length slice. make is used to allocate memorr (remember malloc)
 	fmt.Println("empty:", slc) // empty: [  ] as zero-value of strings is ""
 	fmt.Println("length:", len(slc)) // 3
 
