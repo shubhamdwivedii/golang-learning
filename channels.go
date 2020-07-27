@@ -21,4 +21,21 @@ func main() {
 	fmt.Println(msg) 
 
 	// Read more about this. 
+
+
+	// Channel Buffering ####################
+	
+	// By default channels are "unbuffered", meaning that they will only accept sends (channel <-) if there is a corresponding receive (<- channel) ready to receive the sent value. 
+
+	// "Buffered channels" accept a limited number of values without a corresponding receiver for those values. 
+		
+	messages2 := make(chan string, 2) // Here we make a channel of strings buffering up to 2 values.
+
+	// Because this channel is buffered, we can send these values into the channel without a corresponding concurrent receive.
+	messages2 <- "buffered" 
+	messages2 <- "channel"
+
+	// Later we can receive these two values as usual.
+	fmt.Println(<-messages2)
+	fmt.Println(<-messages2)
 }
