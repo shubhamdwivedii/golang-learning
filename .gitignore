@@ -1,6 +1,6 @@
-errors
-functions
-go-basics
-interfaces
-pointers
-structs-methods
+examples/errors
+examples/functions
+examples/go-basics
+examples/interfaces
+examples/pointers
+examples/structs-methods
