@@ -81,6 +81,7 @@ func main() {
 	handNew.print()
 
 }
+
 func newCard() string { // string is the return type of function
 	return "Four of Clubs"
 }
