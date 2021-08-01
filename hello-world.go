@@ -9,3 +9,5 @@ func main() {
 
 // execute by > go run hello-world.go
 // to build executatble > go build hello-world.go
+
+// Start a Go Project: go mod init github.com/USERNAME/my-go-project
