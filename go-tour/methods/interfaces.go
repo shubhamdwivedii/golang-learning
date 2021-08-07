@@ -80,6 +80,49 @@ func main() {
 	describe2(j) // (42, int)
 	j = "hello"
 	describe2(j) // (hello, string)
+
+	// Type Assertions #########
+
+	var k interface{} = "hello"
+
+	// A "type assertion" provides access to an interface value's underlying concrete value.
+
+	s1 := k.(string)
+	// This asserts that the interface value "i" holds the concrete type "string" and
+	// assigns the underlying "string" value to the variable s
+	fmt.Println(s1)
+
+	// if "i" does not hold a "string", the statement will trigger a panic.
+	// To test, use second return value to check if assertion is successful.
+
+	// This won't cause any error.
+	s2, ok := k.(int)   // if assersion fails, s2 will be zero value of int ie: 0
+	fmt.Println(s2, ok) // 0 false
+
+	s3, ok := k.(string)
+	fmt.Println(s3, ok)
+
+	// This will cause panic error
+	// s4 := i.(float64)
+	// fmt.Println(s4)
+
+	// Type Switches #######
+
+	// A "type switch" allows for several type assertions in series.
+	// Like a regular switch but the cases specify "types" NOT "values"
+	switch v := k.(type) { // keyword "type" is used.
+	case int:
+		fmt.Printf("%v is int", v)
+	case string:
+		fmt.Printf("%v is string", v)
+	default:
+		fmt.Printf("%v is unknown type", v)
+	}
+
+	// Stringers #######
+	shubh := Person{"Shubham Dwivedi", 27}
+	deepk := Person{"Deepak Sah", 46}
+	fmt.Println(shubh, deepk) // Shubham Dwivedi (27 years) Deepak Sah (46 years)
 }
 
 // Interfaces are implemented implicitly #######
@@ -137,3 +180,24 @@ func describe2(i interface{}) {
 
 // Empty interfaces are used by code that handles values of unknown type.
 // Example: "fmt.Print" takes any number of arguments of type "interface{}"
+
+// Stringers ############
+
+// "Stringers" is an interface defined by the "fmt" package:
+/*
+	type Stringer interface {
+		String() string
+	}
+*/
+// A Stringer is a type that can describe itself as a string.
+// The "fmt" package (and many others) look for this interface to print values.
+
+type Person struct {
+	Name string
+	Age  int
+}
+
+// This makes Person a type of Stringer
+func (p Person) String() string {
+	return fmt.Sprintf("%v (%v years)", p.Name, p.Age)
+}
