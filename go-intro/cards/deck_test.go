@@ -19,5 +19,8 @@ func TestNewDeck(t *testing.T) { // Tests starts with UPPERCASE
 	}
 }
 
-// to test run > go test
+// To test run > go test
 // go env -w GO111MODULE=auto
+
+// To run all tests from root
+// run > go test ./...
