@@ -24,3 +24,5 @@ func TestNewDeck(t *testing.T) { // Tests starts with UPPERCASE
 
 // To run all tests from root
 // run > go test ./...
+
+// Use github.com/stretchr/testify assert and require for easy testing.
