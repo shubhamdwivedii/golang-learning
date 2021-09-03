@@ -29,3 +29,18 @@ type person struct {
 	name string
 	age  int
 }
+
+// When Creating "Constructors", Start Their Name With "New".
+func NewPerson() *person {
+	person := new(person)
+	return person
+}
+
+// New > returns a pointer to newly allocated value
+// Make > returns the value of newly allocated value
+
+// Just for example. It is trivial to create such functions.
+func MakePerson() person {
+	var p person = person{}
+	return p
+}
