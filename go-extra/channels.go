@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"time"
@@ -153,6 +154,8 @@ NOTE: if you choose to use your "own" channel for cancellation:
 
 // 1. Signal With Data - Guaranteed - Unbuffered Channels
 
+// Two Scenarios: "Wait-For-Task" and "Wait-For-Result"
+
 // a. Wait-For-Task
 
 func waitForTask() { // Employee needs to wait for paper to perform task.
@@ -205,4 +208,205 @@ func waitForResult() { // Manager waits for Employee to submit his paper.
 
 //======================================================================
 
-// 1. Signal With Data - No Guarantee - Buffered Channels (Buffer > 1)
+// 2. Signal With Data - No Guarantee - Buffered Channels (Buffer > 1)
+
+// Two Scenarios: "Fan-Out" and "Drop"
+
+/*
+To Decide how much buffer you need, ask these questions:
+
+	1. Do I have a well defined amount of work to be completed ?
+		- How much work is there ?
+
+	2. If my employee can't keep up, can I discard any new work ?
+		- How much outstanding work puts me at capacity ?
+
+	3. What level of risk am I willing to accept if my program terminates unexpectedly ?
+		- Anything waiting in the buffer will be lost.
+
+Only use buffered channel if you can answer all these questions.
+*/
+
+// a. Fan-Out
+
+func fanOut() { // You have n number of employees who work concurrently, thus n size buffer to receive all reports.
+	emps := 20
+
+	ch := make(chan string, emps)
+
+	for e := 0; e < emps; e++ {
+		go func() {
+			time.Sleep(time.Duration(rand.Intn(200)) * time.Millisecond)
+			ch <- "paper" // If two employees reach here at same time -
+			// - they must take turns sending the report in the channel
+
+			// Employee need not wait for paper to be "received", "sent" paper is buffered.
+			fmt.Println("Employee submitted paper. Now can go home.")
+		}()
+	}
+
+	for emps > 0 {
+		p := <-ch // Will be blocked here at each iteration, until a paper is "sent"
+		fmt.Println(p)
+		emps--
+	} // Manager will have to wait for all 20 employees to submit paper.
+
+	fmt.Println("All Employees submitted paper. Manager now go home.")
+}
+
+// b. Drop
+
+func selectDrop() { // Manager throws work away when an employee is at capacity
+	const cap = 5
+	ch := make(chan string, cap)
+
+	go func() {
+		for p := range ch { // will break when close(ch) is executed.
+			fmt.Println("employee : received :", p)
+		}
+	}()
+
+	const work = 20
+	for w := 0; w < work; w++ {
+		select {
+		case ch <- "paper":
+			fmt.Println("manager : sent paper is received")
+		default: // reached if ch is blocked.
+			fmt.Println("manager : drop")
+		}
+	}
+
+	close(ch) // this will signal employee that they are done and free to go home.
+}
+
+// *************** Benefit of No-Guarantee - Low Latency **********************
+
+// in Fan-Out: there is buffer space for each employee to send paper, and go home (without waiting for manager to receive paper.)
+// in Drop: buffer is measured for capacity, if capacity reached work is dropped to things can keep moving.
+
+//======================================================================
+
+// 3. Signal With Data - Delayed Gurantee - Buffered Channel (Buffer = 1)
+
+// When you need to know if previous signal was "received" before "sending" a new signal.
+
+// One Scenario: "Wait For Tasks"
+
+func waitForTasks() { // Employee is given multiple tasks, he must finish(sumbit) a task before starting a new one.
+	ch := make(chan string, 1)
+
+	go func() {
+		for p := range ch {
+			// While employee works on a paper, Manager can send 1 more work in the channel which will be received on next iteration.
+			fmt.Println("employee: working :", p)
+		}
+	}()
+
+	const work = 10
+	for w := 0; w < work; w++ {
+		ch <- "paper" // if buffer is empty, you can send work (it is guaranteed that employee received last work we sent.)
+		// if blocked (can't send work), we know that employee hasn't started on (received) last work we sent.
+	}
+	close(ch) // Work done employee and manager go home.
+
+	// Latency is reduced if employee can work as fast as manager can send.
+}
+
+//======================================================================
+
+// 4. Signal Without Data - Context
+
+// Contexts leverage an Unbuffered channel that is closed to perform a signal without data.
+
+// One Scenario: With-Timeout
+
+func withTimeout() { // Manager is on deadline now, if employee does not finish in time, we can't wait.
+	duration := 50 * time.Millisecond
+
+	ctx, cancel := context.WithTimeout(context.Background(), duration)
+	// context.WithTimeout() created a goroutine that will close the Unbuffered channel associated with context once duration is met.
+	defer cancel() // We should still call cancel() regardless of how things turn out.
+	// cancel() will clean up things that have been created for the Context.
+	// Its okay to call cancel more than once.
+
+	ch := make(chan string, 1)
+
+	go func() {
+		time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
+
+		ch <- "paper"
+	}()
+
+	select { // select here receives on two channels:
+	case p := <-ch: // Waiting for employee to submit work.
+		fmt.Println("Employee submitted in time. Yeah!", p)
+
+	case <-ctx.Done(): // Waiting for timer to run out (context will be closed)
+		fmt.Println("Employee didn't finish in time, moving on...")
+	}
+
+	// Which ever case is met first will get executed and we'll reach here.
+	fmt.Println("One of the cases was executed.")
+
+	/*
+		An important aspect of this algorithm is the use of the Buffered channel of 1.
+		If the employee doesn’t finish in time, you are moving on without giving the employee any notice.
+		From the employee perspective, they will always send you the report and they are blind if you are there or not to receive it.
+		If you use an Unbuffered channel, the employee will block forever trying to send you the report if you move on.
+		This would create a goroutine leak. So a Buffered channel of 1 is being used to prevent this from happening.
+	*/
+}
+
+// @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ Summary @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+/*
+Unbuffered channels:
+	Receive happens before the Send.
+	Benefit: 100% guarantee the signal has been received.
+	Cost: Unknown latency on when the signal will be received.
+
+Buffered channels:
+	Send happens before the Receive.
+	Benefit: Reduce blocking latency between signaling.
+	Cost: No guarantee when the signal has been received.
+		- The larger the buffer, the less guarantee.
+		- Buffer of 1 can give you one delayed send of guarantee.
+
+Closing channels:
+	Close happens before the Receive (like Buffered).
+	Signaling without data.
+	Perfect for signaling cancellations and deadlines.
+
+nil channels:
+	Send and Receive block.
+	Turn off signaling
+	Perfect for rate limiting or short term stoppages.
+*/
+
+// @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ Design philosophy @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+/*
+If any given Send on a channel CAN cause the sending goroutine to block:
+		Not allowed to use a Buffered channel larger than 1.
+			- Buffers larger than 1 must have reason/measurements.
+		Must know what happens when the sending goroutine blocks.
+
+If any given Send on a channel WON’T cause the sending goroutine to block:
+	You have the exact number of buffers for each send.
+		- Fan Out pattern
+
+	You have the buffer measured for max capacity.
+		-Drop pattern
+
+Less is more with buffers.
+	Don’t think about performance when thinking about buffers.
+
+	Buffers can help to reduce blocking latency between signaling.
+		- Reducing blocking latency towards zero does not necessarily mean better throughput.
+		- If a buffer of one is giving you good enough throughput then keep it.
+		- Question buffers that are larger than one and measure for size.
+		- Find the smallest buffer possible that provides good enough throughput.
+*/
+
+// ##################################################################################################
+// ##################################################################################################
