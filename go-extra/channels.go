@@ -1,5 +1,11 @@
 package main
 
+import (
+	"fmt"
+	"math/rand"
+	"time"
+)
+
 // Do not think of Channels as a Queue (data structure)
 // It is best to forget about how channels are structured and
 // Focus on how they behave: "Signaling"
@@ -109,6 +115,7 @@ you can choose depending on the type of gurantee you need.
 			- It can guarantee that the previous signal that was sent has been received.
 			- Because the "Receive" of the "First Signal", "Happens Before" the "Send" of the "Second Signal" completes.
 
+NOTE: Unbuffed Channel has buffer size zero.
 */
 
 // Size of the buffer must never be a random number, it must always be calculated for some well defined constraint.
@@ -142,4 +149,60 @@ NOTE: if you choose to use your "own" channel for cancellation:
 	It is zero-space, idiomatic way to indicate a channel is used only for signalling.
 */
 
-// ###################### Scenarios #############################
+// @@@@@@@@@@@@@@@@@@@@@@@@@@@@ Scenarios @@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+// 1. Signal With Data - Guaranteed - Unbuffered Channels
+
+// a. Wait-For-Task
+
+func waitForTask() { // Employee needs to wait for paper to perform task.
+	ch := make(chan string)
+
+	go func() {
+		p := <-ch // "recieve" is blocked until "send" starts
+
+		fmt.Println("Employee working on Paper", p)
+		// Employee performs work here
+		// Employee is done and free to go.
+	}()
+
+	time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
+
+	ch <- "paper1" // "send" will complete when "receive" is done.
+
+	// Only reached when employee has "received" his "paper"
+	fmt.Println("Manager continues his own work")
+}
+
+// NOTE: After both channle operations (send and receive) the "Scheduler" choose to execute any statement it wants.
+// The next line of code that is executed either by "manager" or "employee" is nondeterministic.
+// This means next print statement can be either of the above ones.
+
+// b. Wait-For-Result
+
+func waitForResult() { // Manager waits for Employee to submit his paper.
+	ch := make(chan string)
+
+	go func() {
+		time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
+
+		ch <- "paper2" // "sends" paper
+
+		fmt.Println("Employee has submitted his paper. Now he's free to go.")
+	}()
+
+	p := <-ch // "receive" paper
+	fmt.Println("Manager has received paper:", p)
+
+}
+
+// ***************** The Cost of Guarantee - Latency **********************
+
+// The cost of guarantee is unknown "latency".
+
+// in Wait-For-Task - Employee has no idea how long to wait for paper.
+// in Wait-For-Result - Manager has no idea how long till employee submit paper.
+
+//======================================================================
+
+// 1. Signal With Data - No Guarantee - Buffered Channels (Buffer > 1)
