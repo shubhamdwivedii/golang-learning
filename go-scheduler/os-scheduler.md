@@ -138,3 +138,90 @@ When there are more Threads to consider, and IO-Bound work happening, there is m
 - Less Threads in a Runnable state means less scheduling overhead and more time each Thread gets over time. 
 
 - More Threads in a Runnable state means less time each Thread gets over time. This means less of your work is getting done over time as well. 
+
+
+# Find The Balance 
+
+There is a balance you need to find between the number of cores you have and the number of Threads you need to get the best throughput for your application. 
+
+When it comes to managing this balance, "Thread Pools" were a great answer (no longer necessary with Go).
+
+In languages like C++ and C# (or Java?), the user of IOCP (IO Completion Ports) thread pools were critical to writing multithreaded software. 
+
+Ideal number was 3 Threads per Core. 
+
+
+# Cache Lines
+
+Accessing data from main memory (RAM) has such a high latency cost (~100 to ~300 clock cycles) that processors and cores have local caches to keep data close to the hardware threads that need it.  
+
+Accessing data from caches have a much lower cost (~3 to ~40 clock cycles) depending on the cache being accessed.
+
+Today, one aspect of performance is about how efficiently  you can get data into a processor to reduce these data-access latencies. 
+
+Writing multithreaded applications that mutate state need to consider the mechanics of the caching system. 
+
+##### Data is exchanged between process and main memory (RAM) using "Cache Lines"
+
+- A cache line is a 64-byte chunk of memory that is exchanged between main memory and the caching system. 
+
+- Each core is given its own copy of any cache line it need, which means the harware uses "value semantics" 
+
+- This is why mutations to memory in multithreaded applications can create performance nightmares. 
+
+
+#### When multiple Threads running in parallel are accessing the same data value or even data values near one another, they will be accessing data on the same cache line. 
+
+#### Any Thread running on any core will get its own copy of that same cache line. 
+
+
+# False Sharing 
+
+Suppose Core 0 accesss A and Core 1 accesses A+1 
+
+- A and A+1 are independent pieces of memroy, concurrent access is safe. 
+
+- But A and A+1 probably map to the same cache line. 
+
+If Core 0 writes to A invalidates A+1's cache line in Core 1. And vice versa. This is "False Sharing" 
+
+If one Thread on a given core makes a change to its copy of the cache line, then through the magic of hardware, all other copies of the same cache line have to be marked dirty. 
+
+When a Thread attempts read or write access to a dirty cache line, main memory access (~100 to ~300 clock cycles) is required to get a new copy of the cache line.
+
+Maybe on a 2-core processor this isn’t a big deal, but what about a 32-core processor running 32 threads in parallel all accessing and mutating data on the same cache line? 
+
+What about a system with two physical processors with 16 cores each? This is going to be worse because of the added latency for processor-to-processor communication.
+
+The application is going to be thrashing through memory and the performance is going to be horrible and, most likely, you will have no understanding why. 
+
+#### This is called the "Cache-Coherency Problem" and also introduces problems like false sharing. 
+
+- When writing multithreaded applications that will be mutating shared state, the caching systems have to be taken into account.
+
+
+# Scheduling Decision Scenario
+
+Start application and the main Thread is created and is executing on core 1. 
+
+As the Thread starts executing its instructions, cache lines are retrieved because data is required. 
+
+The Thread now decides to create a new Thread for some concurrent processing. Here is the question: 
+
+Once the Thread is created and ready to go, should the scheduler: 
+
+1. Context-switch the main Thread off of core 1 ? \
+    - Doing this could help performance, as the chances that this new Thread needs the same data that is already cached is pretty good. 
+    - But the main Thread does not get its full time slice. 
+
+2. Have the Thread wait for core 1 to become available pending the completion of the main Thread's time slice ?
+    - The Thread is not running but latency on fetching data will be eliminated once it starts. 
+
+3. Have the Thread wait for the next available core ? 
+    - This would mean cache lines of the selected core would be flushed, retrieved, and duplicated, causing latency. 
+    - However, the Thread would start more quickly and the main Thread could finish its time slice. 
+
+
+#### These are the interesting questions that OS Scheduler needs to take into account when making decisions. 
+
+### If there's an idle core, it's going to be used. You want Threads running when they can be running. 
