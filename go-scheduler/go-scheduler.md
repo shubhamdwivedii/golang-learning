@@ -88,3 +88,62 @@ Just like Threads, Goroutines have the same three high-level states: Waiting, Ru
 3. Executing - This means the Goroutine has been placed on an M (OS Thread) and is executing its instructions. 
     - The work related to the application is getting done. 
     - This is what everyone wants.
+
+
+# Context Switching 
+
+The Go scheduler requries well-defined user-space events that occur at safe points in the code to context-switch from. 
+
+These events and safe points manifest themselves within function calls. Function calls are critical to the health of the Go Scheduler. 
+
+Today (with Go 1.11 or less), if you run any tight loops that are not making function calls, you will cause latencies within the scheduler and garbage collection.
+
+It’s critically important that function calls happen within reasonable timeframes.
+
+
+There are four classes of events that occur in your Go programs that allow the scheduler to make scheduling decisions. This doesn't mean it will always happen on one of these events. It means the scheduler gets the opportunity: 
+
+1. The use of the keyword "go" 
+2. Garbage collection 
+3. System calls 
+4. Synchronization and Orchestration 
+
+1. The Keyword "go": 
+    - The keyword "go" is how you create Goroutines.
+    - Once a new Goroutine is created, it gives the scheduler an opportunity to make a scheduling decision. 
+
+2. Garbage collection (GC): 
+    - Since the GC runs using its own set of Goroutines, those Goroutines need time on an M (OS Thread) to run. 
+    - This causes the GC to create a lot of scheduling chaos. 
+    - However, the scheduler is very smart about what a Goroutine is doing and it will leverage that intelligence to make smart decisions. 
+    - Once smart decision is context-switching a Goroutine that wants to touch the heap with those that don't touch the heap during GC. 
+    - When GC is running, a lot of scheduling decisions are being made. 
+
+3. System Calls: 
+    - If a Goroutine makes a system call that will cause the Goroutine to block the M (OS Thread), sometimes the scheduler is capable of context-switching the Goroutine off the M and context-switch a new Goroutine onto that same M. 
+    - However, sometimes a new M (OS Thread) is required to keep executing Goroutines that are queued up in the P (Logical Core)
+
+4. Synchronization and Orchestration: 
+    If an atomic, mutex, or channel operation call will cause the Goroutine to block, the scheduler can context-switch a new Goroutine to run. Once The Goroutine can run again, it can be re-queued and eventually context-switched back on an M (OS Thread)
+
+
+
+# Asynchronous System Calls
+
+When the OS you are running on has the ability to handle a "system call" asynchronously, somthing called the "Network Poller" can be used to process the system call more efficiently. 
+
+This is accomplished by using a "kqueue" (MacOS), "epoll" (Linux) or "iocp" (Windows) within these respective OS's. 
+
+
+- Networking-based system calls can be process asynchronously by many of the OSs we use today. 
+
+- This is where the "Network Poller" gets its name, since its primary use is handling networking operations.  
+
+- By using the network poller for networking system calls, the scheduler can prevent Goroutines from blocking the M (OS Thread) when those system calls are made. 
+
+- This helps the M available to execute other Goroutines in the P's LRQ without the need to create new Ms (OS thread). 
+
+- This helps to reduce scheduling load on the OS. 
+
+
+![alt text](https://www.ardanlabs.com/images/goinggo/94_figure3.png)
