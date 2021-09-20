@@ -267,3 +267,102 @@ What's great about "work stealing" is that it allows the Ms to stay busy and not
 
 
 # Practical Example
+
+With the mechanics and semantics in place, How all this comes together to allow the Go Scheduler to execute more work over time ?
+
+### C Application (OS Scheduler Only)
+
+Imagine a multi-threaded application written in C where the program is managing two OS Threads that are passing messages back and forth to each other. 
+
+![prac-eg1](https://www.ardanlabs.com/images/goinggo/94_figure14.png)
+
+There are 2 Threads that are passing a message back and forth.
+
+Thread 1 gets context-switched on Core 1 and is now executing, which allows Thread 1 to send its message to Thread 2. 
+
+*Note: How the message is being passed is unimportant. What’s important is the state of the Threads as this orchestration proceeds.*
+
+![prac-eg2](https://www.ardanlabs.com/images/goinggo/94_figure15.png)
+
+Once Thread 1 finishes sending the message, it now waits for response. 
+
+This will cause Thread 1 to be context-switched off Core 1 and moved into a waiting state. 
+
+Once Thread 2 is notified about the message, it moves into runnable state. 
+
+Now OS can perform a context-switch and get Thread 2 executing on a Core, whicch it happens to be Core 2. 
+
+Next, Thread 2 processes the messagte and sends a new message back to Thread 1. 
+
+![prac-eg3](https://www.ardanlabs.com/images/goinggo/94_figure16.png)
+
+Threads context-switch once again as the message by Thread 2 is received by Thread 1. 
+
+Now Thread 2 context-switches from an executing state to a waiting state and Thread 1 context-switches from waiting state to a runnable state and finally back to an executing state, which allows it to process and send a new message back. 
+
+*All these context switchews and state changes require time to be performed which limits how fast the work can get done.* 
+
+*With each context-switching potential incurring a latency of ~1000 nanoseconds, and hopefully the hardware executing 12 instructions per nanosecond, you are looking at 12k instructions, more or less, not executing during these context-switches.*
+
+*Since these Threads are also bouncing between different Cores, the chances of incurring additional latency due to __cache-line misses__ are also high.*
+
+
+### Go Application (Go Scheduler)
+
+There are two Goroutines that are in orchestration with each other passing a message back and forth. 
+
+![prac-eg4](https://www.ardanlabs.com/images/goinggo/94_figure17.png)
+
+G1 gets context-switched on M1 (OS Thread), which happens to be running on Core 1, which allows G1 to be executing its work. 
+
+The work is for G1 to send its message to G2. 
+
+![prac-eg5](https://www.ardanlabs.com/images/goinggo/94_figure18.png)
+
+Once G1 finishes sending the mesage, it now waits for the response. This will cause G1 to be context-switched off M1 and moved to waiting state. 
+
+Once G2 is notified about the message, it moves into a runnable state. Now Go Scheduler context-switches G2 to executing on M1. 
+
+**M1 is still running on Core 1**
+
+Next, G2 processes the message and sends a new message back to G1. 
+
+![prac-eg6](https://www.ardanlabs.com/images/goinggo/94_figure19.png)
+
+Once message sent by G2 is received by G1, they context-switch again. 
+
+G2 context-switches from executing state to waiting state and G1 context-switches from a waiting state to runnable and then finally back to executing state.
+
+*Things on the surface don’t appear to be any different. All the same context switches and state changes are occuring whether you use Threads or Goroutines.*
+
+*However, there is a major difference between using Threads and Goroutines that might not be obvious at first glance.*
+
+#### In the case of using Goroutines, the same OS Thread and Core is being used for all the processing. 
+
+**This means that, from the OS’s perspective, the OS Thread never moves into a waiting state; not once.**
+
+**As a result all those instructions we lost to context switches when using Threads are not lost when using Goroutines.**
+
+
+##### Essentially, Go has turned IO/Blocking work into CPU-bound work at the OS level. 
+
+
+**Since all the context switching is happening at the application level, we don’t lose the same ~12k instructions (on average) per context switch that we were losing when using Threads.**
+
+*In Go, those same context switches are costing you ~200 nanoseconds or ~2.4k instructions*
+
+The scheduler is also helping with gains on cache-line efficiencies and NUMA. This is why we don’t need more Threads than we have virtual cores.
+
+##### In Go, it’s possible to get more work done, over time, because the Go scheduler attempts to use less Threads and do more on each Thread, which helps to reduce load on the OS and the hardware.
+
+The ability to turn IO/Blocking work into CPU-bound work at the OS level is where we get a big win in leveraging more CPU capacity over time.
+
+*This is why you don’t need more OS Threads than you have virtual cores.*
+
+Doing so is possible for networking apps and other apps that don’t need system calls that block OS Threads.
+
+As a developer, you still need to understand what your app is doing in terms of the kinds of work you are processing.
+
+*You can’t create an unlimited number of Goroutines and expect amazing performance.*
+
+*Less is always more, but with the understanding of these Go-scheduler semantics, you can make better engineering decisions.*
