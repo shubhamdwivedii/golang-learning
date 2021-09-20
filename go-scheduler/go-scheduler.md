@@ -169,8 +169,9 @@ When the async network system call is completed by the network poller, Goroutine
 Once Goroutine-1 can be context-switched back on the M, the Go related code it's responsible for can execute again. 
 
 
-#### The big win here is that, to execute network system calls, no extra Ms are needed. 
-#### The network poller has an OS Thread and it is handling an efficient event loop.
+**The big win here is that, to execute network system calls, no extra Ms are needed.**
+
+**The network poller has an OS Thread and it is handling an efficient event loop.**
 
 
 # Synchronous System Calls
@@ -337,14 +338,14 @@ G2 context-switches from executing state to waiting state and G1 context-switche
 
 *However, there is a major difference between using Threads and Goroutines that might not be obvious at first glance.*
 
-#### In the case of using Goroutines, the same OS Thread and Core is being used for all the processing. 
+### In the case of using Goroutines, the same OS Thread and Core is being used for all the processing. 
 
 **This means that, from the OS’s perspective, the OS Thread never moves into a waiting state; not once.**
 
 **As a result all those instructions we lost to context switches when using Threads are not lost when using Goroutines.**
 
 
-##### Essentially, Go has turned IO/Blocking work into CPU-bound work at the OS level. 
+### Essentially, Go has turned IO/Blocking work into CPU-bound work at the OS level. 
 
 
 **Since all the context switching is happening at the application level, we don’t lose the same ~12k instructions (on average) per context switch that we were losing when using Threads.**
@@ -353,7 +354,7 @@ G2 context-switches from executing state to waiting state and G1 context-switche
 
 The scheduler is also helping with gains on cache-line efficiencies and NUMA. This is why we don’t need more Threads than we have virtual cores.
 
-##### In Go, it’s possible to get more work done, over time, because the Go scheduler attempts to use less Threads and do more on each Thread, which helps to reduce load on the OS and the hardware.
+### In Go, it’s possible to get more work done, over time, because the Go scheduler attempts to use less Threads and do more on each Thread, which helps to reduce load on the OS and the hardware.
 
 The ability to turn IO/Blocking work into CPU-bound work at the OS level is where we get a big win in leveraging more CPU capacity over time.
 
