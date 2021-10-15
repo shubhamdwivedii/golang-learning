@@ -23,7 +23,7 @@ Every P is assigned an OS Thread("M"). The "M" stands for machine.
 This Thread is still managed by the OS and the OS (OS Scheduler) is still responsible for placing the Thread on a Core for execution. 
 
 
-Evey Go program is also given an initail Goroutine ("G"), which is the path of execution for a Go program. 
+Evey Go program is also given an initial Goroutine ("G"), which is the path of execution for a Go program. 
 
 A Goroutine is essentially a "Coroutine" but this is Go, so we replace letter "C" with a "G". 
 
@@ -86,7 +86,7 @@ Just like Threads, Goroutines have the same three high-level states: Waiting, Ru
 2. Runnable - This means the Goroutine wants time on an M (OS Thread) so it can execute its assigned instructions. 
     - If you have a lot of Goroutines that want time, then Goroutines have to wait longer to get time. 
     - Also, the individual amount of time any given Goroutine gets is shortened as more Goroutines compete for time. 
-    - This type of sheduling latency can also be a cause of bad performance. 
+    - This type of scheduling latency can also be a cause of bad performance. 
 
 
 3. Executing - This means the Goroutine has been placed on an M (OS Thread) and is executing its instructions. 
@@ -120,7 +120,7 @@ There are four classes of events that occur in your Go programs that allow the s
     - Since the GC runs using its own set of Goroutines, those Goroutines need time on an M (OS Thread) to run. 
     - This causes the GC to create a lot of scheduling chaos. 
     - However, the scheduler is very smart about what a Goroutine is doing and it will leverage that intelligence to make smart decisions. 
-    - Once smart decision is context-switching a Goroutine that wants to touch the heap with those that don't touch the heap during GC. 
+    - **Once smart decision is context-switching a Goroutine that wants to touch the heap with those that don't touch the heap during GC.** 
     - When GC is running, a lot of scheduling decisions are being made. 
 
 3. System Calls: 
@@ -242,11 +242,11 @@ runtime.schedule() {
 }
 ```
 
-Based on these rules, P1 needs to check P2 for Goroutines in its LRQ and TAKE HALF of what it finds. 
+Based on these rules, P1 needs to check P2 for Goroutines in its LRQ and **TAKE HALF** of what it finds. 
 
 ![work-steal3](https://www.ardanlabs.com/images/goinggo/94_figure11.png)
 
-P1 has taken half the Goroutines from P2 and now P1 can execute them. 
+P1 has taken **half** the Goroutines from P2 and now P1 can execute them. 
 
 What happens if P2 finishes servicing all of its Goroutines and P1 has nothing left in its LRQ ? 
 
@@ -291,9 +291,9 @@ This will cause Thread 1 to be context-switched off Core 1 and moved into a wait
 
 Once Thread 2 is notified about the message, it moves into runnable state. 
 
-Now OS can perform a context-switch and get Thread 2 executing on a Core, whicch it happens to be Core 2. 
+Now OS can perform a context-switch and get Thread 2 executing on a Core, which it happens to be Core 2. 
 
-Next, Thread 2 processes the messagte and sends a new message back to Thread 1. 
+Next, Thread 2 processes the message and sends a new message back to Thread 1. 
 
 ![prac-eg3](https://www.ardanlabs.com/images/goinggo/94_figure16.png)
 
